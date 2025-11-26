@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+DATA_LAYER.md
+DATA_LAYER_SUMMARY.md
