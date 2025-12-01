@@ -1,163 +1,208 @@
 import CircularProgress from "@/components/CircularProgress";
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
-import { feedbackItems } from "@/constants/feedback";
+import { useFeedbackSession, useScenario } from "@/hooks";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { View as RNView, ScrollView, StyleSheet } from "react-native";
+import {
+	ActivityIndicator,
+	View as RNView,
+	ScrollView,
+	StyleSheet,
+} from "react-native";
 
 export default function FeedbackDetailScreen() {
 	const { id } = useLocalSearchParams<{ id: string }>();
-	const item = feedbackItems.find((f) => f.id === id);
+	const { data: session, isLoading, error } = useFeedbackSession(id || "");
+	const { data: scenario } = useScenario(session?.scenarioId || "");
+	const analysis = session?.analysis;
+
+	const breakdown = analysis
+		? [
+				{
+					label: "Communication",
+					value: analysis.communicationScore,
+					color: Colors.light.tint,
+				},
+				{
+					label: "Problem Solving",
+					value: analysis.problemSolvingScore,
+					color: "#F4C44E",
+				},
+				{ label: "Empathy", value: analysis.empathyScore, color: "#E35D5D" },
+		  ]
+		: [];
 
 	return (
 		<>
 			<Stack.Screen options={{ title: "Session Feedback" }} />
-			<ScrollView contentContainerStyle={styles.container}>
-				{/* Overall Performance Card */}
-				<View style={styles.card}>
-					<RNView style={styles.centerRow}>
-						<CircularProgress score={item?.score ?? 0} size={64} />
-					</RNView>
-					<Text style={styles.heading}>Overall Performance</Text>
-					<Text style={styles.subtext}>
-						Great Job! You handled the situations well
-					</Text>
-					<RNView style={styles.starsRow}>
-						<Text style={styles.star}>⭐️⭐️⭐️⭐️☆</Text>
-					</RNView>
+			{isLoading && (
+				<View style={styles.loadingContainer}>
+					<ActivityIndicator size="large" color={Colors.light.tint} />
+					<Text style={styles.loadingText}>Loading feedback...</Text>
 				</View>
-
-				{/* Performance Breakdown */}
-				<View style={styles.card}>
-					<Text style={styles.sectionTitle}>Performance Breakdown</Text>
-					{breakdown.map((b) => (
-						<RNView key={b.label} style={styles.breakdownRow}>
-							<Text style={styles.breakdownLabel}>{b.label}</Text>
-							<RNView style={styles.progressBarBg}>
-								<RNView
-									style={[
-										styles.progressBarFill,
-										{ width: `${b.value}%`, backgroundColor: b.color },
-									]}
-								/>
-							</RNView>
-							<Text style={styles.breakdownValue}>{b.value}%</Text>
+			)}
+			{!isLoading && error && (
+				<View style={styles.loadingContainer}>
+					<Text style={styles.errorText}>Failed to load feedback.</Text>
+				</View>
+			)}
+			{!isLoading && !error && !session && (
+				<View style={styles.loadingContainer}>
+					<Text style={styles.errorText}>Feedback session not found.</Text>
+				</View>
+			)}
+			{session && (
+				<ScrollView contentContainerStyle={styles.container}>
+					<View style={styles.card}>
+						<RNView style={styles.centerRow}>
+							<CircularProgress score={session.score} size={80} />
 						</RNView>
-					))}
-				</View>
+						<Text style={styles.heading}>{scenario?.title || "Scenario"}</Text>
+						<Text style={styles.subtext}>
+							{scenario?.category} •{" "}
+							{new Date(session.completedAt).toLocaleDateString()}
+						</Text>
+					</View>
 
-				{/* What you did well */}
-				<View style={styles.card}>
-					<RNView style={styles.sectionHeaderRow}>
-						<RNView style={[styles.iconCircle, { backgroundColor: "#E6F5EF" }]}>
-							<Text style={[styles.iconText, { color: Colors.light.tint }]}>
-								👍
+					<View style={styles.card}>
+						<Text style={styles.sectionTitle}>Performance Breakdown</Text>
+						{breakdown.length === 0 && (
+							<Text style={styles.placeholderText}>
+								No detailed analysis available.
 							</Text>
-						</RNView>
-						<Text style={styles.sectionTitle}>What you did well</Text>
-					</RNView>
-
-					{positives.map((p) => (
-						<RNView key={p.title} style={styles.bulletBlock}>
-							<RNView
-								style={[
-									styles.bulletDot,
-									{ backgroundColor: Colors.light.tint },
-								]}
-							/>
-							<RNView style={styles.bulletContent}>
-								<Text style={styles.bulletTitle}>{p.title}</Text>
-								<Text style={styles.bulletText}>{p.text}</Text>
+						)}
+						{breakdown.map((b) => (
+							<RNView key={b.label} style={styles.breakdownRow}>
+								<Text style={styles.breakdownLabel}>{b.label}</Text>
+								<RNView style={styles.progressBarBg}>
+									<RNView
+										style={[
+											styles.progressBarFill,
+											{ width: `${b.value}%`, backgroundColor: b.color },
+										]}
+									/>
+								</RNView>
+								<Text style={styles.breakdownValue}>{b.value}%</Text>
 							</RNView>
-						</RNView>
-					))}
-				</View>
+						))}
+					</View>
 
-				{/* Areas to Improve */}
-				<View style={styles.card}>
-					<RNView style={styles.sectionHeaderRow}>
-						<RNView style={[styles.iconCircle, { backgroundColor: "#FFF3D6" }]}>
-							<Text style={[styles.iconText, { color: "#F4C44E" }]}>🔧</Text>
-						</RNView>
-						<Text style={styles.sectionTitle}>Areas to Improve</Text>
-					</RNView>
+					{analysis?.keyInsights?.length ? (
+						<View style={styles.card}>
+							<Text style={styles.sectionTitle}>Key Insights</Text>
+							{analysis.keyInsights.map((k) => (
+								<RNView key={k} style={styles.bulletBlock}>
+									<RNView
+										style={[
+											styles.bulletDot,
+											{ backgroundColor: Colors.light.tint },
+										]}
+									/>
+									<RNView style={styles.bulletContent}>
+										<Text style={styles.bulletText}>{k}</Text>
+									</RNView>
+								</RNView>
+							))}
+						</View>
+					) : null}
 
-					{improvements.map((p) => (
-						<RNView key={p.title} style={styles.bulletBlock}>
+					<View style={styles.card}>
+						<RNView style={styles.sectionHeaderRow}>
 							<RNView
-								style={[styles.bulletDot, { backgroundColor: p.dotColor }]}
-							/>
-							<RNView style={styles.bulletContent}>
-								<Text style={styles.bulletTitle}>{p.title}</Text>
-								<Text style={styles.bulletText}>{p.text}</Text>
-								<View style={[styles.tipBox, { backgroundColor: p.tipBg }]}>
-									<Text style={styles.tipText}>{p.tip}</Text>
-								</View>
+								style={[styles.iconCircle, { backgroundColor: "#E6F5EF" }]}
+							>
+								<Text style={[styles.iconText, { color: Colors.light.tint }]}>
+									👍
+								</Text>
 							</RNView>
+							<Text style={styles.sectionTitle}>Strengths</Text>
 						</RNView>
-					))}
-				</View>
+						{analysis?.strengths?.length ? (
+							analysis.strengths.map((s) => (
+								<RNView key={s} style={styles.bulletBlock}>
+									<RNView
+										style={[
+											styles.bulletDot,
+											{ backgroundColor: Colors.light.tint },
+										]}
+									/>
+									<RNView style={styles.bulletContent}>
+										<Text style={styles.bulletText}>{s}</Text>
+									</RNView>
+								</RNView>
+							))
+						) : (
+							<Text style={styles.placeholderText}>No strengths recorded.</Text>
+						)}
+					</View>
 
-				{/* Actions */}
-				<RNView style={styles.actions}>
-					<View
-						style={[styles.primaryBtn, { backgroundColor: Colors.light.tint }]}
-					>
-						<Text style={styles.primaryBtnText}>Replay Scenario</Text>
+					<View style={styles.card}>
+						<RNView style={styles.sectionHeaderRow}>
+							<RNView
+								style={[styles.iconCircle, { backgroundColor: "#FFF3D6" }]}
+							>
+								<Text style={[styles.iconText, { color: "#F4C44E" }]}>🔧</Text>
+							</RNView>
+							<Text style={styles.sectionTitle}>Areas for Improvement</Text>
+						</RNView>
+						{analysis?.areasForImprovement?.length ? (
+							analysis.areasForImprovement.map((a) => (
+								<RNView key={a} style={styles.bulletBlock}>
+									<RNView
+										style={[styles.bulletDot, { backgroundColor: "#F4C44E" }]}
+									/>
+									<RNView style={styles.bulletContent}>
+										<Text style={styles.bulletText}>{a}</Text>
+									</RNView>
+								</RNView>
+							))
+						) : (
+							<Text style={styles.placeholderText}>
+								No improvement suggestions.
+							</Text>
+						)}
 					</View>
-					<View style={styles.secondaryBtn}>
-						<Text style={styles.secondaryBtnText}>View All Feedbacks</Text>
-					</View>
-				</RNView>
-			</ScrollView>
+
+					<RNView style={styles.actions}>
+						<View
+							style={[
+								styles.primaryBtn,
+								{ backgroundColor: Colors.light.tint },
+							]}
+						>
+							<Text style={styles.primaryBtnText}>Replay Scenario</Text>
+						</View>
+						<View style={styles.secondaryBtn}>
+							<Text style={styles.secondaryBtnText}>View All Feedbacks</Text>
+						</View>
+					</RNView>
+				</ScrollView>
+			)}
 		</>
 	);
 }
 
-const breakdown = [
-	{ label: "Communication", value: 90, color: Colors.light.tint },
-	{ label: "Problem Solving", value: 70, color: "#F4C44E" },
-	{ label: "Empathy", value: 44, color: "#E35D5D" },
-	{ label: "Response Time", value: 52, color: "#F4C44E" },
-	{ label: "Ideation", value: 12, color: "#E35D5D" },
-];
-
-const positives = [
-	{
-		title: "Active Listening",
-		text: "You demonstrated excellent active listening skills by acknowledging the customer's concerns and asking clarifying questions.",
-	},
-	{
-		title: "Empathy & Understanding",
-		text: "Your empathetic responses helped build rapport and made the customer feel heard and valued.",
-	},
-	{
-		title: "Solution-Oriented Approach",
-		text: "You quickly identified the problem and provided practical solutions that addressed the customer's needs.",
-	},
-];
-
-const improvements = [
-	{
-		title: "Response Time",
-		text: "Consider responding more quickly to maintain conversation flow and show engagement.",
-		tip: "Tip: Aim to respond within 2-3 seconds to maintain natural conversation rhythm.",
-		tipBg: "#FFF3D6",
-		dotColor: "#F4C44E",
-	},
-	{
-		title: "Follow-up Questions",
-		text: "Ask more follow-up questions to better understand the customer's specific situation and needs.",
-		tip: 'Tip: Use open-ended questions like "Can you tell me more about..." or "How did that make you feel?"',
-		tipBg: "#FFF3D6",
-		dotColor: "#F4C44E",
-	},
-];
-
+// Styles
 const styles = StyleSheet.create({
 	container: {
 		padding: 16,
 		gap: 16,
+	},
+	loadingContainer: {
+		flex: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		padding: 32,
+	},
+	loadingText: {
+		marginTop: 12,
+		fontSize: 16,
+		color: "#666",
+	},
+	errorText: {
+		fontSize: 16,
+		color: "#E53935",
+		fontWeight: "600",
 	},
 	card: {
 		backgroundColor: "#fff",
@@ -180,11 +225,32 @@ const styles = StyleSheet.create({
 		color: "#222",
 		textAlign: "center",
 	},
+	scoreSummaryRow: {
+		flexDirection: "row",
+		justifyContent: "center",
+		marginTop: 12,
+		gap: 8,
+	},
+	summaryScoreLabel: {
+		fontSize: 14,
+		color: "#555",
+		fontWeight: "600",
+	},
+	summaryScoreValue: {
+		fontSize: 16,
+		fontWeight: "700",
+		color: Colors.light.tint,
+	},
 	subtext: {
 		marginTop: 4,
 		fontSize: 14,
 		color: "#666",
 		textAlign: "center",
+	},
+	placeholderText: {
+		fontSize: 14,
+		color: "#777",
+		fontStyle: "italic",
 	},
 	starsRow: {
 		alignItems: "center",
@@ -259,12 +325,6 @@ const styles = StyleSheet.create({
 	},
 	bulletContent: {
 		flex: 1,
-	},
-	bulletTitle: {
-		fontSize: 14,
-		fontWeight: "700",
-		color: "#222",
-		marginBottom: 6,
 	},
 	bulletText: {
 		fontSize: 14,

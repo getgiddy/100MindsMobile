@@ -162,7 +162,7 @@ class FeedbackService {
             { scores: number[]; count: number }
         >();
 
-        sessions.forEach((session) => {
+        for (const session of sessions) {
             const scenario = scenarios.find((s) => s.id === session.scenarioId);
             if (scenario) {
                 const category = scenario.category;
@@ -171,7 +171,7 @@ class FeedbackService {
                 existing.count++;
                 categoryMap.set(category, existing);
             }
-        });
+        }
 
         const categoryBreakdown = Array.from(categoryMap.entries()).map(
             ([category, data]) => ({

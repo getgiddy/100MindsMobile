@@ -184,10 +184,10 @@ class ScenarioService {
         const scenarios = await this.getScenarios();
         const categoryMap = new Map<string, number>();
 
-        scenarios.forEach((scenario) => {
+        for (const scenario of scenarios) {
             const count = categoryMap.get(scenario.category) || 0;
             categoryMap.set(scenario.category, count + 1);
-        });
+        }
 
         return Array.from(categoryMap.entries()).map(([name, count]) => ({
             name,
