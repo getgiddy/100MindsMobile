@@ -70,21 +70,44 @@ class PersonaSyncService {
 
     private async processItem(item: PendingPersonaItem): Promise<void> {
         try {
-            const scenario = await scenarioService.getScenarioById(item.scenarioId);
+            const scenario = await scenarioService.getScenarioById(
+                item.scenarioId,
+            );
             if (!scenario) {
+                console.log(
+                    `[PersonaSync] Scenario ${item.scenarioId} not found, removing from queue`,
+                );
                 await this.removeFromQueue(item.scenarioId);
                 return;
             }
 
             // If persona already has an ID or is ready/error, skip
             const currentStatus = scenario.persona?.status;
-            if (scenario.persona?.personaId || currentStatus === "ready" || currentStatus === "error") {
+            if (
+                scenario.persona?.personaId || currentStatus === "ready" ||
+                currentStatus === "error"
+            ) {
+                console.log(
+                    `[PersonaSync] Scenario ${item.scenarioId} already processed (status: ${currentStatus}), removing from queue`,
+                );
                 await this.removeFromQueue(item.scenarioId);
                 return;
             }
 
+            console.log(
+                `[PersonaSync] Processing scenario ${item.scenarioId}, attempt ${
+                    (item.attempts || 0) + 1
+                }`,
+            );
+
             // Create persona via backend proxy
-            const response = await tavusService.createPersona(item.personaInput);
+            const response = await tavusService.createPersona(
+                item.personaInput,
+            );
+
+            console.log(
+                `[PersonaSync] Persona created successfully for scenario ${item.scenarioId}: ${response.persona_id}`,
+            );
 
             // Update scenario with personaId and initial status
             const updatedPersona: PersonaConfig = {
@@ -102,8 +125,18 @@ class PersonaSyncService {
                 persona: updatedPersona,
             });
 
-            // Poll until ready or error
-            const finalStatus = await tavusService.pollPersonaStatus(response.persona_id);
+            console.log(
+                `[PersonaSync] Starting to poll status for persona ${response.persona_id}`,
+            );
+
+            // Poll until ready or error (this may take several minutes)
+            const finalStatus = await tavusService.pollPersonaStatus(
+                response.persona_id,
+            );
+
+            console.log(
+                `[PersonaSync] Polling complete for persona ${response.persona_id}, final status: ${finalStatus.status}`,
+            );
 
             await scenarioService.updateScenario({
                 id: scenario.id,
@@ -120,6 +153,13 @@ class PersonaSyncService {
             await this.removeFromQueue(item.scenarioId);
         } catch (error) {
             console.error("PersonaSyncService.processItem error:", error);
+            console.error("Error details:", {
+                scenarioId: item.scenarioId,
+                attempts: (item.attempts || 0) + 1,
+                errorMessage: (error as Error).message,
+                errorStack: (error as Error).stack,
+            });
+
             // Increment attempts and retain in queue for retry
             const queue = (await storage.get<PendingPersonaItem[]>(
                 STORAGE_KEYS.PENDING_PERSONAS,
@@ -127,13 +167,18 @@ class PersonaSyncService {
             const updatedQueue = queue.map((q) =>
                 q.scenarioId === item.scenarioId
                     ? { ...q, attempts: (q.attempts || 0) + 1 }
-                    : q,
+                    : q
             );
             await storage.set(STORAGE_KEYS.PENDING_PERSONAS, updatedQueue);
 
             // If too many attempts, mark scenario as error and remove from queue
             if ((item.attempts || 0) + 1 >= 5) {
-                const scenario = await scenarioService.getScenarioById(item.scenarioId);
+                console.error(
+                    `[PersonaSync] Max attempts reached for scenario ${item.scenarioId}, marking as error`,
+                );
+                const scenario = await scenarioService.getScenarioById(
+                    item.scenarioId,
+                );
                 if (scenario) {
                     await scenarioService.updateScenario({
                         id: scenario.id,
@@ -147,6 +192,12 @@ class PersonaSyncService {
                     });
                 }
                 await this.removeFromQueue(item.scenarioId);
+            } else {
+                console.log(
+                    `[PersonaSync] Will retry scenario ${item.scenarioId} (${
+                        (item.attempts || 0) + 1
+                    }/5 attempts)`,
+                );
             }
         }
     }

@@ -1,10 +1,11 @@
 import Feather from "@expo/vector-icons/Feather";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import React from "react";
 
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { useAuth } from "@/contexts/AuthContext";
 
 function TabBarIcon(props: {
 	name: React.ComponentProps<typeof Feather>["name"];
@@ -27,12 +28,23 @@ function ProgressTabBarIcon({ color }: { color: string }) {
 
 export default function TabLayout() {
 	const colorScheme = useColorScheme();
+	const { session, loading } = useAuth();
+
+	// Don't render anything while checking auth
+	if (loading) {
+		return null;
+	}
+
+	// Redirect to sign-in if not authenticated
+	if (!session) {
+		return <Redirect href="/auth/sign-in" />;
+	}
 
 	return (
 		<Tabs
 			screenOptions={{
 				tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        tabBarInactiveTintColor: Colors[colorScheme ?? "light"].tabIconDefault,
+				tabBarInactiveTintColor: Colors[colorScheme ?? "light"].tabIconDefault,
 				// Disable the static render of the header on web
 				// to prevent a hydration error in React Navigation v6.
 				headerShown: useClientOnlyValue(false, true),

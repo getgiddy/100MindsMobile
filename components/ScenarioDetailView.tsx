@@ -1,8 +1,19 @@
-import PersonaStatusBadge from "@/components/PersonaStatusBadge";
+import Button from "@/components/Button";
+import { useDeleteScenario } from "@/hooks";
 import { documentService } from "@/services/documentService";
 import type { Document, Scenario } from "@/types";
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+	Alert,
+	Image,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface ScenarioDetailViewProps {
@@ -17,6 +28,36 @@ export default function ScenarioDetailView({
 	scenario,
 }: ScenarioDetailViewProps) {
 	const [documents, setDocuments] = useState<Document[]>([]);
+	const deleteScenario = useDeleteScenario();
+	const router = useRouter();
+
+	const handleDelete = () => {
+		Alert.alert(
+			"Delete Scenario",
+			`Are you sure you want to delete "${scenario.title}"? This action cannot be undone.`,
+			[
+				{
+					text: "Cancel",
+					style: "cancel",
+				},
+				{
+					text: "Delete",
+					style: "destructive",
+					onPress: async () => {
+						try {
+							await deleteScenario.mutateAsync(scenario.id);
+							router.back();
+						} catch (error) {
+							Alert.alert(
+								"Error",
+								"Failed to delete scenario. Please try again."
+							);
+						}
+					},
+				},
+			]
+		);
+	};
 
 	useEffect(() => {
 		if (scenario.persona?.layers?.document_ids) {
@@ -32,11 +73,42 @@ export default function ScenarioDetailView({
 			<ScrollView contentContainerStyle={styles.content}>
 				{/* Header */}
 				<View style={styles.header}>
+					{/* Top-right delete icon */}
+					{scenario.isCustom && (
+						<Pressable
+							style={styles.deleteIconButton}
+							onPress={handleDelete}
+							disabled={deleteScenario.isPending}
+							accessibilityRole="button"
+							accessibilityLabel="Delete Scenario"
+						>
+							<Feather
+								name="trash-2"
+								size={18}
+								color={deleteScenario.isPending ? "#fca5a5" : "#ef4444"}
+							/>
+						</Pressable>
+					)}
 					{scenario.imageSource && (
 						<Image source={scenario.imageSource} style={styles.avatar} />
 					)}
 					<Text style={styles.title}>{scenario.title}</Text>
 					<Text style={styles.description}>{scenario.description}</Text>
+
+					{/* Primary Action: Start Conversation */}
+					<View style={styles.actionsRow}>
+						<Button
+							title="Start Conversation"
+							variant="primary"
+							onPress={() =>
+								router.push({
+									pathname: "/call-screen",
+									params: { scenarioId: String(scenario.id) },
+								})
+							}
+							accessibilityLabel="Start conversation for this scenario"
+						/>
+					</View>
 				</View>
 
 				{/* Metadata */}
@@ -80,7 +152,7 @@ export default function ScenarioDetailView({
 				)}
 
 				{/* Persona Configuration */}
-				{scenario.persona && (
+				{/* {scenario.persona &&  (
 					<View style={styles.section}>
 						<Text style={styles.sectionTitle}>Persona Configuration</Text>
 
@@ -125,7 +197,7 @@ export default function ScenarioDetailView({
 							</View>
 						)}
 					</View>
-				)}
+				)} */}
 
 				{/* Knowledge Documents */}
 				{documents.length > 0 && (
@@ -196,6 +268,7 @@ const styles = StyleSheet.create({
 		padding: 16,
 		marginBottom: 16,
 		alignItems: "center",
+		position: "relative",
 	},
 	avatar: {
 		width: 80,
@@ -215,6 +288,20 @@ const styles = StyleSheet.create({
 		color: "#666",
 		textAlign: "center",
 		lineHeight: 22,
+	},
+	actionsRow: {
+		width: "100%",
+		marginTop: 16,
+	},
+	deleteIconButton: {
+		position: "absolute",
+		top: 12,
+		right: 12,
+		padding: 8,
+		borderRadius: 16,
+		backgroundColor: "#fef2f2",
+		borderWidth: 1,
+		borderColor: "#fecaca",
 	},
 	section: {
 		backgroundColor: "#fff",
@@ -259,7 +346,7 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		color: "#006d6d",
 		fontWeight: "600",
-        wordWrap: 'break-word',
+		wordWrap: "break-word",
 	},
 	tagsContainer: {
 		flexDirection: "row",

@@ -12,7 +12,7 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/components/useColorScheme";
-import { personaSyncService } from "@/services/personaSyncService";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 export {
 	// Catch any errors thrown by the Layout component.
@@ -65,27 +65,45 @@ export default function RootLayout() {
 function RootLayoutNav() {
 	const colorScheme = useColorScheme();
 
-	// Start persona sync service when app navigation mounts
-	useEffect(() => {
-		personaSyncService.start();
-	}, []);
-
 	return (
 		<QueryClientProvider client={queryClient}>
-			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-				<Stack>
-					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-					<Stack.Screen name="modal" options={{ presentation: "modal" }} />
-					<Stack.Screen
-						name="create-scenario"
-						options={{ presentation: "modal" }}
-					/>
-					<Stack.Screen
-						name="feedback/[id]"
-						options={{ headerBackButtonDisplayMode: "minimal" }}
-					/>
-				</Stack>
-			</ThemeProvider>
+			<AuthProvider>
+				<ThemeProvider
+					value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+				>
+					<NavigationContent />
+				</ThemeProvider>
+			</AuthProvider>
 		</QueryClientProvider>
+	);
+}
+
+function NavigationContent() {
+	const { session, loading } = useAuth();
+
+	// Show nothing while checking auth state
+	if (loading) {
+		return null;
+	}
+
+	return (
+		<Stack>
+			<Stack.Screen name="auth/sign-in" options={{ headerShown: false }} />
+			<Stack.Screen name="auth/sign-up" options={{ headerShown: false }} />
+			<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+			<Stack.Screen
+				name="auth/forgot-password"
+				options={{ title: "Reset Password" }}
+			/>
+			<Stack.Screen name="modal" options={{ presentation: "modal" }} />
+			<Stack.Screen
+				name="create-scenario"
+				options={{ presentation: "modal" }}
+			/>
+			<Stack.Screen
+				name="feedback/[id]"
+				options={{ headerBackButtonDisplayMode: "minimal" }}
+			/>
+		</Stack>
 	);
 }
