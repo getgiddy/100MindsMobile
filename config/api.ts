@@ -20,4 +20,10 @@ export const API_ENDPOINTS = {
     LOGIN: "/auth/login",
     REGISTER: "/auth/register",
     PROFILE: "/auth/profile",
+
+    // Tavus proxy (backend-secured)
+    TAVUS_CREATE_PERSONA: "/tavus/personas",
+    TAVUS_PERSONA_STATUS: (id: string) => `/tavus/personas/${id}/status`,
+    TAVUS_LIST_DOCUMENTS: "/tavus/documents",
+    TAVUS_LIST_REPLICAS: "/tavus/replicas",
 } as const;

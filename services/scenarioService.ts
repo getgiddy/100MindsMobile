@@ -1,5 +1,6 @@
 import type {
     CreateScenarioInput,
+    PersonaConfig,
     Scenario,
     ScenarioFilter,
     UpdateScenarioInput,
@@ -26,6 +27,8 @@ const INITIAL_SCENARIOS: Scenario[] = [
         createdAt: new Date("2025-11-01"),
         updatedAt: new Date("2025-11-01"),
         isCustom: false,
+        tags: ["Team Management"],
+        persona: defaultPersonaConfig(),
     },
     {
         id: "2",
@@ -38,6 +41,8 @@ const INITIAL_SCENARIOS: Scenario[] = [
         createdAt: new Date("2025-11-01"),
         updatedAt: new Date("2025-11-01"),
         isCustom: false,
+        tags: ["Leadership"],
+        persona: defaultPersonaConfig(),
     },
     {
         id: "3",
@@ -50,6 +55,8 @@ const INITIAL_SCENARIOS: Scenario[] = [
         createdAt: new Date("2025-11-01"),
         updatedAt: new Date("2025-11-01"),
         isCustom: false,
+        tags: ["Conflict Resolution"],
+        persona: defaultPersonaConfig(),
     },
     {
         id: "4",
@@ -62,6 +69,8 @@ const INITIAL_SCENARIOS: Scenario[] = [
         createdAt: new Date("2025-11-01"),
         updatedAt: new Date("2025-11-01"),
         isCustom: false,
+        tags: ["Performance"],
+        persona: defaultPersonaConfig(),
     },
 ];
 
@@ -73,7 +82,16 @@ class ScenarioService {
         const existing = await storage.get<Scenario[]>(STORAGE_KEYS.SCENARIOS);
         if (!existing || existing.length === 0) {
             await storage.set(STORAGE_KEYS.SCENARIOS, INITIAL_SCENARIOS);
+            return;
         }
+
+        // Migration: ensure new optional fields exist with safe defaults
+        const migrated = existing.map((s) => ({
+            ...s,
+            tags: s.tags ?? [],
+            persona: s.persona ?? defaultPersonaConfig(),
+        }));
+        await storage.set(STORAGE_KEYS.SCENARIOS, migrated);
     }
 
     /**
@@ -131,6 +149,8 @@ class ScenarioService {
             createdAt: new Date(),
             updatedAt: new Date(),
             isCustom: true,
+            tags: input.tags ?? [],
+            persona: input.persona ?? defaultPersonaConfig(),
         };
 
         const updated = [...scenarios, newScenario];
@@ -198,3 +218,27 @@ class ScenarioService {
 
 // Export singleton instance
 export const scenarioService = new ScenarioService();
+
+// Default persona config helper (Phase 1 safe defaults)
+function defaultPersonaConfig(): PersonaConfig {
+    return {
+        personaName: undefined,
+        systemPrompt: undefined,
+        pipelineMode: "full",
+        context: undefined,
+        defaultReplicaId: undefined,
+        layers: {
+            llm: { model: "tavus-gpt-4o", speculative_inference: true, tools: [] },
+            tts: { tts_engine: "cartesia", tts_model_name: "sonic", voice_settings: {} },
+            perception: {},
+            stt: { stt_engine: "tavus-advanced", smart_turn_detection: true },
+            conversational_flow: { turn_taking_patience: "medium", turn_commitment: "medium" },
+            document_ids: [],
+            document_tags: [],
+        },
+        status: undefined,
+        lastStatusAt: undefined,
+        syncError: null,
+        isSyncedRemote: false,
+    };
+}

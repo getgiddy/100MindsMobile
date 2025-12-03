@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/components/useColorScheme";
+import { personaSyncService } from "@/services/personaSyncService";
 
 export {
 	// Catch any errors thrown by the Layout component.
@@ -63,6 +64,11 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
 	const colorScheme = useColorScheme();
+
+	// Start persona sync service when app navigation mounts
+	useEffect(() => {
+		personaSyncService.start();
+	}, []);
 
 	return (
 		<QueryClientProvider client={queryClient}>

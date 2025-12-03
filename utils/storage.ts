@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
     FEEDBACK_SESSIONS: "@100minds/feedback_sessions",
     USER_PREFERENCES: "@100minds/user_preferences",
     AUTH_TOKEN: "@100minds/auth_token",
+    DOCUMENTS: "@100minds/documents",
+    PENDING_PERSONAS: "@100minds/pending_personas",
 } as const;
 
 export const storage = {

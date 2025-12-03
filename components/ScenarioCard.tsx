@@ -1,4 +1,5 @@
 import Colors from "@/constants/Colors";
+import type { PersonaStatus } from "@/types";
 import React from "react";
 import {
 	Image,
@@ -8,6 +9,7 @@ import {
 	Text,
 	View,
 } from "react-native";
+import PersonaStatusBadge from "./PersonaStatusBadge";
 
 export type ScenarioCardProps = {
 	title: string;
@@ -15,12 +17,24 @@ export type ScenarioCardProps = {
 	category: string;
 	duration: string; // e.g. "15 min"
 	imageSource?: ImageSourcePropType; // local asset or remote via { uri }
+	tags?: string[];
+	personaStatus?: PersonaStatus;
+	pipelineMode?: "full" | "echo";
 	onPress?: () => void;
 };
 
 export default function ScenarioCard(props: Readonly<ScenarioCardProps>) {
-	const { title, description, category, duration, imageSource, onPress } =
-		props;
+	const {
+		title,
+		description,
+		category,
+		duration,
+		imageSource,
+		tags,
+		personaStatus,
+		pipelineMode,
+		onPress,
+	} = props;
 	return (
 		<Pressable
 			style={styles.card}
@@ -39,12 +53,39 @@ export default function ScenarioCard(props: Readonly<ScenarioCardProps>) {
 					<Text style={styles.description} numberOfLines={2}>
 						{description}
 					</Text>
+
+					{/* Tags */}
+					{tags && tags.length > 0 && (
+						<View style={styles.tagsRow}>
+							{tags.slice(0, 3).map((tag) => (
+								<View key={tag} style={styles.tag}>
+									<Text style={styles.tagText}>{tag}</Text>
+								</View>
+							))}
+							{tags.length > 3 && (
+								<Text style={styles.moreText}>+{tags.length - 3} more</Text>
+							)}
+						</View>
+					)}
+
 					<View style={styles.metaRow}>
 						<View style={styles.pill}>
 							<Text style={styles.pillText}>{category}</Text>
 						</View>
 						<View style={styles.dot} />
 						<Text style={styles.duration}>{duration}</Text>
+						{pipelineMode && (
+							<>
+								<View style={styles.dot} />
+								<Text style={styles.pipelineText}>{pipelineMode}</Text>
+							</>
+						)}
+						{personaStatus && (
+							<>
+								<View style={styles.dot} />
+								<PersonaStatusBadge status={personaStatus} size="small" />
+							</>
+						)}
 					</View>
 				</View>
 			</View>
@@ -117,5 +158,34 @@ const styles = StyleSheet.create({
 	duration: {
 		fontSize: 12,
 		color: "#8a8a8a",
+	},
+	tagsRow: {
+		flexDirection: "row",
+		flexWrap: "wrap",
+		gap: 6,
+		marginTop: 8,
+		marginBottom: 4,
+	},
+	tag: {
+		backgroundColor: "#F3F4F6",
+		paddingHorizontal: 8,
+		paddingVertical: 3,
+		borderRadius: 8,
+	},
+	tagText: {
+		fontSize: 11,
+		color: "#4B5563",
+		fontWeight: "500",
+	},
+	moreText: {
+		fontSize: 11,
+		color: "#9CA3AF",
+		alignSelf: "center",
+	},
+	pipelineText: {
+		fontSize: 11,
+		color: "#6366F1",
+		fontWeight: "600",
+		textTransform: "uppercase",
 	},
 });

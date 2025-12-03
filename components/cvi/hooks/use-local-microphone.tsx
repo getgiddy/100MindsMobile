@@ -19,7 +19,9 @@ export const useLocalMicrophone = (): {
       const localParticipant = callObject.participants().local;
       if (localParticipant) {
         setLocalSessionId(localParticipant.session_id);
-        setIsMicMuted(!localParticipant.audio);
+        const audioState = localParticipant.tracks?.audio?.state;
+        // consider the microphone muted when the audio track state is explicitly 'off'
+        setIsMicMuted(audioState === 'off');
         setIsMicReady(true);
       }
     };

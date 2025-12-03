@@ -1,5 +1,7 @@
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,7 +9,7 @@ import IconButton from "@/components/IconButton";
 import Logo from "@/components/Logo";
 import ScenarioCard from "@/components/ScenarioCard";
 import { SpacerMedium, SpacerSmall } from "@/components/spacers";
-import { useScenarios } from "@/hooks";
+import { scenarioKeys, useScenarios } from "@/hooks";
 import type { ScenarioCategory } from "@/types";
 
 const SCENARIO_CATEGORIES = [
@@ -19,13 +21,27 @@ const SCENARIO_CATEGORIES = [
 ];
 
 export default function TabOneScreen() {
+	const queryClient = useQueryClient();
 	const [selectedCategory, setSelectedCategory] = useState<number>(1);
 	// Fetch scenarios with the data layer
 	const filter =
 		selectedCategory === 1
 			? undefined
 			: { category: SCENARIO_CATEGORIES[selectedCategory - 1].name };
-	const { data: scenarios = [], isLoading, error } = useScenarios(filter);
+	const {
+		data: scenarios = [],
+		isLoading,
+		error,
+		refetch,
+	} = useScenarios(filter);
+
+	// Refresh scenarios when screen comes into focus
+	useFocusEffect(
+		useCallback(() => {
+			queryClient.invalidateQueries({ queryKey: scenarioKeys.all });
+			refetch();
+		}, [queryClient, refetch])
+	);
 
 	return (
 		<SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -115,7 +131,10 @@ export default function TabOneScreen() {
 								category={item.category}
 								duration={`${item.duration} min`}
 								imageSource={item.imageSource}
-								onPress={() => {}}
+								tags={item.tags}
+								personaStatus={item.persona?.status}
+								pipelineMode={item.persona?.pipelineMode}
+								onPress={() => router.push(`/scenario/${item.id}`)}
 							/>
 						)}
 						keyExtractor={(item) => item.id}

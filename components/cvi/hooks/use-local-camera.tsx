@@ -19,7 +19,6 @@ export const useLocalCamera = (): {
       const localParticipant = callObject.participants().local;
       if (localParticipant) {
         setLocalSessionId(localParticipant.session_id);
-        // localParticipant.video is deprecated; use tracks.video.state instead.
         // Consider the video active when state === 'playable', otherwise treat as muted.
         const videoState = localParticipant?.tracks?.video?.state;
         setIsCamMuted(videoState !== 'playable');

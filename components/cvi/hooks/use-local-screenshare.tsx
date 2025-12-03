@@ -18,7 +18,8 @@ export const useLocalScreenshare = (): {
       const localParticipant = callObject.participants().local;
       if (localParticipant) {
         setLocalSessionId(localParticipant.session_id);
-        setIsScreenSharing(!!localParticipant.screen);
+        const screenState = localParticipant.tracks?.screenVideo?.state;
+        setIsScreenSharing(!!screenState && screenState !== 'off');
       }
     };
 
