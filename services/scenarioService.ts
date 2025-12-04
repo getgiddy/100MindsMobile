@@ -497,7 +497,8 @@ function defaultPersonaConfig(): PersonaConfig {
 	return {
 		// Use a preconfigured Tavus persona ID for all scenarios
 		// This persona should be created once in Tavus dashboard
-		personaId: "pa9c7a69d551",
+		personaId: process.env.EXPO_PUBLIC_PERSONA_ID || "pa9c7a69d551",
+		replicaId: process.env.EXPO_PUBLIC_REPLICA_ID || "rca8a38779a8",
 		personaName: "Roleplay Coach",
 		isSyncedRemote: true, // Already exists in Tavus
 	};

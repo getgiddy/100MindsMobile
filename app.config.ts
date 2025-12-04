@@ -26,6 +26,7 @@ module.exports = {
 			bundleIdentifier: "com.elevateadm.100MindsMobile",
 		},
 		android: {
+			package: "com.elevateadm.x100MindsMobile",
 			adaptiveIcon: {
 				foregroundImage: "./assets/images/adaptive-icon.png",
 				backgroundColor: "#ffffff",

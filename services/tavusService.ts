@@ -28,6 +28,21 @@ export interface TavusReplicaInfo {
 	thumbnail_url?: string;
 }
 
+export interface CreateConversationInput {
+	replicaId: string;
+	personaId: string;
+	conversationName?: string;
+	conversationalContext?: string;
+	maxCallDuration?: number;
+	participantLeftTimeout?: number;
+	participantAbsentTimeout?: number;
+}
+
+export interface ConversationResponse {
+	conversation_url: string;
+	conversation_id: string;
+}
+
 class TavusService {
 	/**
 	 * Get the Edge Function URL
@@ -328,6 +343,153 @@ class TavusService {
 		} catch (error) {
 			console.error("TavusService.listReplicas error:", error);
 			return []; // Graceful fallback
+		}
+	}
+
+	/**
+	 * Create a new conversation via Tavus API
+	 */
+	async createConversation(
+		input: CreateConversationInput,
+	): Promise<ConversationResponse> {
+		try {
+			const apiKey = process.env.EXPO_PUBLIC_TAVUS_API_KEY;
+			if (!apiKey) {
+				throw new Error("Tavus API key not configured");
+			}
+
+			const payload: Record<string, any> = {
+				replica_id: input.replicaId,
+				persona_id: input.personaId,
+				memory_stores: input.conversationalContext
+					? [input.conversationalContext]
+					: undefined,
+				conversation_name: input.conversationName,
+				conversational_context: input.conversationalContext,
+				custom_greeting: "Hey there!",
+
+				properties: {
+					max_call_duration: input.maxCallDuration || 300,
+					participant_left_timeout: input.participantLeftTimeout ||
+						15,
+					participant_absent_timeout:
+						input.participantAbsentTimeout || 30,
+				},
+				test_mode: false,
+			};
+
+			console.log("[TavusService] Creating conversation:", {
+				replicaId: input.replicaId,
+				personaId: input.personaId,
+				hasName: !!input.conversationName,
+				hasContext: !!input.conversationalContext,
+			});
+
+			const controller = new AbortController();
+			const timeoutId = setTimeout(
+				() => controller.abort(),
+				API_CONFIG.TIMEOUT,
+			);
+
+			const response = await fetch(
+				"https://tavusapi.com/v2/conversations",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-api-key": apiKey,
+					},
+					body: JSON.stringify(payload),
+					signal: controller.signal,
+				},
+			);
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error("[TavusService] Conversation creation error:", {
+					status: response.status,
+					errorData,
+				});
+				throw new Error(
+					errorData.error ||
+						`Conversation creation failed: ${response.status}`,
+				);
+			}
+
+			const data = await response.json();
+			console.log("[TavusService] Conversation created:", {
+				conversationId: data.conversation_id,
+				hasUrl: !!data.conversation_url,
+			});
+
+			return {
+				conversation_url: data.conversation_url,
+				conversation_id: data.conversation_id,
+			};
+		} catch (error) {
+			console.error("TavusService.createConversation error:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * End a conversation via Tavus API
+	 * Should be called when user leaves to properly clean up resources
+	 */
+	async endConversation(conversationId: string): Promise<void> {
+		try {
+			const apiKey = process.env.EXPO_PUBLIC_TAVUS_API_KEY;
+			if (!apiKey) {
+				throw new Error("Tavus API key not configured");
+			}
+
+			console.log("[TavusService] Ending conversation:", {
+				conversationId,
+			});
+
+			const controller = new AbortController();
+			const timeoutId = setTimeout(
+				() => controller.abort(),
+				API_CONFIG.TIMEOUT,
+			);
+
+			const response = await fetch(
+				`https://tavusapi.com/v2/conversations/${conversationId}/end`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-api-key": apiKey,
+					},
+					signal: controller.signal,
+				},
+			);
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error("[TavusService] End conversation error:", {
+					status: response.status,
+					errorData,
+					conversationId,
+				});
+				// Don't throw error on end conversation - log it but continue
+				console.warn(
+					`Failed to end conversation ${conversationId}: ${response.status}`,
+				);
+				return;
+			}
+
+			console.log("[TavusService] Conversation ended successfully:", {
+				conversationId,
+			});
+		} catch (error) {
+			console.error("TavusService.endConversation error:", error);
+			// Don't throw - ending conversation should be best effort
+			console.warn("Failed to end conversation, but continuing");
 		}
 	}
 

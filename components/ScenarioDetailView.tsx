@@ -1,11 +1,15 @@
 import Button from "@/components/Button";
+import { Conversation } from "@/components/cvi/components/conversation";
+import { CVIProvider } from "@/components/cvi/components/cvi-provider";
 import { useDeleteScenario } from "@/hooks";
 import { documentService } from "@/services/documentService";
+import { tavusService } from "@/services/tavusService";
 import type { Document, Scenario } from "@/types";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+	ActivityIndicator,
 	Alert,
 	Image,
 	Pressable,
@@ -28,6 +32,9 @@ export default function ScenarioDetailView({
 	scenario,
 }: ScenarioDetailViewProps) {
 	const [documents, setDocuments] = useState<Document[]>([]);
+	const [conversationUrl, setConversationUrl] = useState<string | null>(null);
+	const [conversationId, setConversationId] = useState<string | null>(null);
+	const [loading, setLoading] = useState(false);
 	const deleteScenario = useDeleteScenario();
 	const router = useRouter();
 
@@ -59,6 +66,42 @@ export default function ScenarioDetailView({
 		);
 	};
 
+	const createConversation = async () => {
+		if (!scenario.persona?.replicaId || !scenario.persona?.personaId) {
+			Alert.alert(
+				"Configuration Error",
+				"This scenario is missing required persona configuration."
+			);
+			return;
+		}
+
+		setLoading(true);
+		try {
+			const result = await tavusService.createConversation({
+				replicaId: scenario.persona.replicaId,
+				personaId: scenario.persona.personaId,
+				conversationName: scenario.title,
+				conversationalContext: scenario.description,
+				maxCallDuration: 300,
+				participantLeftTimeout: 60,
+				participantAbsentTimeout: 150,
+			});
+
+			setConversationUrl(result.conversation_url);
+			setConversationId(result.conversation_id);
+		} catch (error) {
+			console.error("Error creating conversation:", error);
+			Alert.alert(
+				"Error",
+				error instanceof Error
+					? error.message
+					: "Failed to create conversation. Please try again."
+			);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	useEffect(() => {
 		if (scenario.persona?.layers?.document_ids) {
 			documentService
@@ -69,90 +112,109 @@ export default function ScenarioDetailView({
 	}, [scenario.persona?.layers?.document_ids]);
 
 	return (
-		<SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-			<ScrollView contentContainerStyle={styles.content}>
-				{/* Header */}
-				<View style={styles.header}>
-					{/* Top-right delete icon */}
-					{scenario.isCustom && (
-						<Pressable
-							style={styles.deleteIconButton}
-							onPress={handleDelete}
-							disabled={deleteScenario.isPending}
-							accessibilityRole="button"
-							accessibilityLabel="Delete Scenario"
-						>
-							<Feather
-								name="trash-2"
-								size={18}
-								color={deleteScenario.isPending ? "#fca5a5" : "#ef4444"}
-							/>
-						</Pressable>
-					)}
-					{scenario.imageSource && (
-						<Image source={scenario.imageSource} style={styles.avatar} />
-					)}
-					<Text style={styles.title}>{scenario.title}</Text>
-					<Text style={styles.description}>{scenario.description}</Text>
-
-					{/* Primary Action: Start Conversation */}
-					<View style={styles.actionsRow}>
-						<Button
-							title="Start Conversation"
-							variant="primary"
-							onPress={() =>
-								router.push({
-									pathname: "/call-screen",
-									params: { scenarioId: String(scenario.id) },
-								})
+		<CVIProvider>
+			<SafeAreaView
+				style={styles.container}
+				edges={["left", "right", "bottom"]}
+			>
+				{conversationUrl ? (
+					<Conversation
+						conversationUrl={conversationUrl}
+						onLeave={async () => {
+							if (conversationId) {
+								await tavusService.endConversation(conversationId);
 							}
-							accessibilityLabel="Start conversation for this scenario"
-						/>
-					</View>
-				</View>
+							setConversationUrl(null);
+							setConversationId(null);
+						}}
+					/>
+				) : (
+					<ScrollView contentContainerStyle={styles.content}>
+						{/* Header */}
+						<View style={styles.header}>
+							{/* Top-right delete icon */}
+							{scenario.isCustom && (
+								<Pressable
+									style={styles.deleteIconButton}
+									onPress={handleDelete}
+									disabled={deleteScenario.isPending}
+									accessibilityRole="button"
+									accessibilityLabel="Delete Scenario"
+								>
+									<Feather
+										name="trash-2"
+										size={18}
+										color={deleteScenario.isPending ? "#fca5a5" : "#ef4444"}
+									/>
+								</Pressable>
+							)}
+							{scenario.imageSource && (
+								<Image source={scenario.imageSource} style={styles.avatar} />
+							)}
+							<Text style={styles.title}>{scenario.title}</Text>
+							<Text style={styles.description}>{scenario.description}</Text>
 
-				{/* Metadata */}
-				<View style={styles.section}>
-					<Text style={styles.sectionTitle}>Details</Text>
-					<View style={styles.metaRow}>
-						<View style={styles.metaItem}>
-							<Text style={styles.metaLabel}>Category</Text>
-							<View style={styles.categoryPill}>
-								<Text style={styles.categoryText}>{scenario.category}</Text>
+							{/* Primary Action: Start Conversation */}
+							<View style={styles.actionsRow}>
+								{loading ? (
+									<ActivityIndicator
+										size="large"
+										color="#006d6d"
+										style={styles.loader}
+									/>
+								) : (
+									<Button
+										title="Start Conversation"
+										variant="primary"
+										onPress={createConversation}
+										accessibilityLabel="Start conversation for this scenario"
+									/>
+								)}
 							</View>
 						</View>
-						<View style={styles.metaItem}>
-							<Text style={styles.metaLabel}>Duration</Text>
-							<Text style={styles.metaValue}>{scenario.duration} min</Text>
+
+						{/* Metadata */}
+						<View style={styles.section}>
+							<Text style={styles.sectionTitle}>Details</Text>
+							<View style={styles.metaRow}>
+								<View style={styles.metaItem}>
+									<Text style={styles.metaLabel}>Category</Text>
+									<View style={styles.categoryPill}>
+										<Text style={styles.categoryText}>{scenario.category}</Text>
+									</View>
+								</View>
+								<View style={styles.metaItem}>
+									<Text style={styles.metaLabel}>Duration</Text>
+									<Text style={styles.metaValue}>{scenario.duration} min</Text>
+								</View>
+								{scenario.difficulty && (
+									<View style={styles.metaItem}>
+										<Text style={styles.metaLabel}>Difficulty</Text>
+										<Text style={styles.metaValue}>
+											{scenario.difficulty.charAt(0).toUpperCase() +
+												scenario.difficulty.slice(1)}
+										</Text>
+									</View>
+								)}
+							</View>
 						</View>
-						{scenario.difficulty && (
-							<View style={styles.metaItem}>
-								<Text style={styles.metaLabel}>Difficulty</Text>
-								<Text style={styles.metaValue}>
-									{scenario.difficulty.charAt(0).toUpperCase() +
-										scenario.difficulty.slice(1)}
-								</Text>
+
+						{/* Tags */}
+						{scenario.tags && scenario.tags.length > 0 && (
+							<View style={styles.section}>
+								<Text style={styles.sectionTitle}>Tags</Text>
+								<View style={styles.tagsContainer}>
+									{scenario.tags.map((tag) => (
+										<View key={tag} style={styles.tag}>
+											<Text style={styles.tagText}>{tag}</Text>
+										</View>
+									))}
+								</View>
 							</View>
 						)}
-					</View>
-				</View>
 
-				{/* Tags */}
-				{scenario.tags && scenario.tags.length > 0 && (
-					<View style={styles.section}>
-						<Text style={styles.sectionTitle}>Tags</Text>
-						<View style={styles.tagsContainer}>
-							{scenario.tags.map((tag) => (
-								<View key={tag} style={styles.tag}>
-									<Text style={styles.tagText}>{tag}</Text>
-								</View>
-							))}
-						</View>
-					</View>
-				)}
-
-				{/* Persona Configuration */}
-				{/* {scenario.persona &&  (
+						{/* Persona Configuration */}
+						{/* {scenario.persona &&  (
 					<View style={styles.section}>
 						<Text style={styles.sectionTitle}>Persona Configuration</Text>
 
@@ -199,58 +261,63 @@ export default function ScenarioDetailView({
 					</View>
 				)} */}
 
-				{/* Knowledge Documents */}
-				{documents.length > 0 && (
-					<View style={styles.section}>
-						<Text style={styles.sectionTitle}>
-							Knowledge Documents ({documents.length})
-						</Text>
-						{documents.map((doc) => (
-							<View key={doc.id} style={styles.documentCard}>
-								<Text style={styles.documentName}>{doc.name}</Text>
-								{doc.description && (
-									<Text style={styles.documentDescription} numberOfLines={2}>
-										{doc.description}
-									</Text>
-								)}
-								<View style={styles.documentMeta}>
-									<View style={styles.documentTags}>
-										{doc.tags.slice(0, 3).map((tag) => (
-											<View key={tag} style={styles.documentTag}>
-												<Text style={styles.documentTagText}>{tag}</Text>
-											</View>
-										))}
-										{doc.tags.length > 3 && (
-											<Text style={styles.moreTagsText}>
-												+{doc.tags.length - 3}
+						{/* Knowledge Documents */}
+						{documents.length > 0 && (
+							<View style={styles.section}>
+								<Text style={styles.sectionTitle}>
+									Knowledge Documents ({documents.length})
+								</Text>
+								{documents.map((doc) => (
+									<View key={doc.id} style={styles.documentCard}>
+										<Text style={styles.documentName}>{doc.name}</Text>
+										{doc.description && (
+											<Text
+												style={styles.documentDescription}
+												numberOfLines={2}
+											>
+												{doc.description}
 											</Text>
 										)}
-									</View>
-									<Text style={styles.documentSize}>
-										{documentService.formatFileSize(doc.size)}
-									</Text>
-								</View>
-							</View>
-						))}
-					</View>
-				)}
-
-				{/* Document Tags */}
-				{scenario.persona?.layers?.document_tags &&
-					scenario.persona.layers.document_tags.length > 0 && (
-						<View style={styles.section}>
-							<Text style={styles.sectionTitle}>Document Tag Filters</Text>
-							<View style={styles.tagsContainer}>
-								{scenario.persona.layers.document_tags.map((tag) => (
-									<View key={tag} style={styles.filterTag}>
-										<Text style={styles.filterTagText}>{tag}</Text>
+										<View style={styles.documentMeta}>
+											<View style={styles.documentTags}>
+												{doc.tags.slice(0, 3).map((tag) => (
+													<View key={tag} style={styles.documentTag}>
+														<Text style={styles.documentTagText}>{tag}</Text>
+													</View>
+												))}
+												{doc.tags.length > 3 && (
+													<Text style={styles.moreTagsText}>
+														+{doc.tags.length - 3}
+													</Text>
+												)}
+											</View>
+											<Text style={styles.documentSize}>
+												{documentService.formatFileSize(doc.size)}
+											</Text>
+										</View>
 									</View>
 								))}
 							</View>
-						</View>
-					)}
-			</ScrollView>
-		</SafeAreaView>
+						)}
+
+						{/* Document Tags */}
+						{scenario.persona?.layers?.document_tags &&
+							scenario.persona.layers.document_tags.length > 0 && (
+								<View style={styles.section}>
+									<Text style={styles.sectionTitle}>Document Tag Filters</Text>
+									<View style={styles.tagsContainer}>
+										{scenario.persona.layers.document_tags.map((tag) => (
+											<View key={tag} style={styles.filterTag}>
+												<Text style={styles.filterTagText}>{tag}</Text>
+											</View>
+										))}
+									</View>
+								</View>
+							)}
+					</ScrollView>
+				)}
+			</SafeAreaView>
+		</CVIProvider>
 	);
 }
 
@@ -286,7 +353,7 @@ const styles = StyleSheet.create({
 	description: {
 		fontSize: 15,
 		color: "#666",
-		textAlign: "center",
+		textAlign: "justify",
 		lineHeight: 22,
 	},
 	actionsRow: {
@@ -466,5 +533,8 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		color: "#92400e",
 		fontWeight: "600",
+	},
+	loader: {
+		marginTop: 12,
 	},
 });

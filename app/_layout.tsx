@@ -104,6 +104,10 @@ function NavigationContent() {
 				name="feedback/[id]"
 				options={{ headerBackButtonDisplayMode: "minimal" }}
 			/>
+			<Stack.Screen
+				name="scenario/[id]"
+				options={{ headerBackButtonDisplayMode: "minimal" }}
+			/>
 		</Stack>
 	);
 }

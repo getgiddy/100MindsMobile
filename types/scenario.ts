@@ -99,6 +99,7 @@ export interface PersonaLayersConfig {
 
 export interface PersonaConfig {
     personaId?: string;
+    replicaId?: string;
     personaName?: string;
     systemPrompt?: string;
     pipelineMode?: PersonaPipelineMode;

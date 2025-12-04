@@ -77,17 +77,17 @@ export default function CreateScenarioScreen() {
 						<Text style={styles.label}>
 							Description<Text style={styles.required}> *</Text>
 						</Text>
-						<View style={[styles.inputBox, { minHeight: 112 }]}>
-							<TextInput
-								placeholder="Briefly describe your scenario..."
-								value={description}
-								onChangeText={setDescription}
-								multiline
-								style={[styles.textInput, { height: 96 }]}
-								maxLength={150}
-							/>
-							<Text style={styles.counter}>{descriptionCount}/150</Text>
-						</View>
+					<View style={[styles.inputBox, { minHeight: 112 }]}>
+						<TextInput
+							placeholder="Briefly describe your scenario..."
+							value={description}
+							onChangeText={setDescription}
+							multiline
+							style={[styles.textInput, { height: 96 }]}
+							maxLength={500}
+						/>
+						<Text style={styles.counter}>{descriptionCount}/500</Text>
+					</View>
 					</View>
 
 					{/* Validation Errors */}
