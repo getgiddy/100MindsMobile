@@ -375,7 +375,7 @@ class TavusService {
 					participant_absent_timeout:
 						input.participantAbsentTimeout || 30,
 				},
-				test_mode: false,
+				test_mode: true,
 			};
 
 			console.log("[TavusService] Creating conversation:", {

@@ -113,10 +113,7 @@ export default function ScenarioDetailView({
 
 	return (
 		<CVIProvider>
-			<SafeAreaView
-				style={styles.container}
-				edges={["left", "right", "bottom"]}
-			>
+			<SafeAreaView style={styles.container} edges={["left", "right"]}>
 				{conversationUrl ? (
 					<Conversation
 						conversationUrl={conversationUrl}
