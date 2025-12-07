@@ -2,6 +2,7 @@ export interface FeedbackSession {
     id: string;
     scenarioId: string;
     userId?: string;
+    conversationId?: string; // Link to conversation record
     score: number; // 0-100
     completedAt: Date;
     duration: number; // actual time taken in seconds

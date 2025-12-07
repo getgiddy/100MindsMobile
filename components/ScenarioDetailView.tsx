@@ -80,6 +80,7 @@ export default function ScenarioDetailView({
 			const result = await tavusService.createConversation({
 				replicaId: scenario.persona.replicaId,
 				personaId: scenario.persona.personaId,
+				scenarioId: scenario.id,
 				conversationName: scenario.title,
 				conversationalContext: scenario.description,
 				maxCallDuration: 300,

@@ -175,6 +175,49 @@ class FeedbackService {
 	}
 
 	/**
+	 * Get feedback session by conversation ID
+	 */
+	async getFeedbackByConversationId(
+		conversationId: string,
+	): Promise<FeedbackSession | null> {
+		const userId = await this.getCurrentUserId();
+
+		// Try Supabase first if user is logged in
+		if (userId) {
+			try {
+				// Join with conversations table to find by conversation_id
+				const { data: conversation, error: convError } = await supabase
+					.from("conversations")
+					.select("id")
+					.eq("conversation_id", conversationId)
+					.eq("user_id", userId)
+					.single();
+
+				if (convError) throw convError;
+
+				if (conversation) {
+					const { data, error } = await supabase
+						.from("feedback_sessions")
+						.select("*")
+						.eq("conversation_id", conversation.id)
+						.eq("user_id", userId)
+						.single();
+
+					if (error) throw error;
+					if (data) return this.mapDbToFeedbackSession(data);
+				}
+			} catch (error) {
+				console.warn(
+					"Supabase query failed for conversation feedback:",
+					error,
+				);
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Get feedback list items (simplified view for list display)
 	 */
 	async getFeedbackListItems(): Promise<FeedbackListItem[]> {

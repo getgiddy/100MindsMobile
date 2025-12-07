@@ -31,6 +31,7 @@ export interface TavusReplicaInfo {
 export interface CreateConversationInput {
 	replicaId: string;
 	personaId: string;
+	scenarioId: string; // Required to link conversation to scenario
 	conversationName?: string;
 	conversationalContext?: string;
 	maxCallDuration?: number;
@@ -358,6 +359,21 @@ class TavusService {
 				throw new Error("Tavus API key not configured");
 			}
 
+			// Validate required fields
+			if (!input.scenarioId) {
+				console.error(
+					"[TavusService] Missing required scenarioId:",
+					input,
+				);
+				throw new Error(
+					"scenarioId is required for conversation creation",
+				);
+			}
+
+			// Get webhook URL
+			const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || "";
+			const webhookUrl = `${supabaseUrl}/functions/v1/tavus-webhook`;
+
 			const payload: Record<string, any> = {
 				replica_id: input.replicaId,
 				persona_id: input.personaId,
@@ -366,8 +382,8 @@ class TavusService {
 					: undefined,
 				conversation_name: input.conversationName,
 				conversational_context: input.conversationalContext,
-				custom_greeting: "Hey there!",
-
+				// custom_greeting: "Hey there!",
+				callback_url: webhookUrl, // Add webhook URL for conversation completion
 				properties: {
 					max_call_duration: input.maxCallDuration || 300,
 					participant_left_timeout: input.participantLeftTimeout ||
@@ -375,14 +391,16 @@ class TavusService {
 					participant_absent_timeout:
 						input.participantAbsentTimeout || 30,
 				},
-				test_mode: true,
+				test_mode: false,
 			};
 
 			console.log("[TavusService] Creating conversation:", {
 				replicaId: input.replicaId,
 				personaId: input.personaId,
+				scenarioId: input.scenarioId,
 				hasName: !!input.conversationName,
 				hasContext: !!input.conversationalContext,
+				webhookUrl,
 			});
 
 			const controller = new AbortController();
@@ -424,6 +442,22 @@ class TavusService {
 				hasUrl: !!data.conversation_url,
 			});
 
+			// Store conversation record in database
+			if (!input.scenarioId) {
+				console.error("[TavusService] Missing scenarioId in input:", {
+					conversationId: data.conversation_id,
+					input: JSON.stringify(input),
+				});
+				console.warn(
+					"[TavusService] Skipping conversation record storage - scenarioId is required",
+				);
+			} else {
+				await this.storeConversationRecord(
+					data.conversation_id,
+					input.scenarioId,
+				);
+			}
+
 			return {
 				conversation_url: data.conversation_url,
 				conversation_id: data.conversation_id,
@@ -431,6 +465,55 @@ class TavusService {
 		} catch (error) {
 			console.error("TavusService.createConversation error:", error);
 			throw error;
+		}
+	}
+
+	/**
+	 * Store conversation record in database for webhook tracking
+	 */
+	private async storeConversationRecord(
+		conversationId: string,
+		scenarioId: string,
+	): Promise<void> {
+		try {
+			const { data: { user }, error: authError } = await supabase.auth
+				.getUser();
+
+			if (authError || !user) {
+				console.error(
+					"[TavusService] No authenticated user for conversation record",
+				);
+				throw new Error("User not authenticated");
+			}
+
+			const { error: insertError } = await supabase
+				.from("conversations")
+				.insert({
+					conversation_id: conversationId,
+					user_id: user.id,
+					scenario_id: scenarioId,
+					status: "active",
+					started_at: new Date().toISOString(),
+				});
+
+			if (insertError) {
+				console.error("[TavusService] Failed to store conversation:", {
+					error: insertError.message,
+					conversationId,
+				});
+				// Don't throw - conversation was created successfully in Tavus
+				// This is just for tracking purposes
+				console.warn("Continuing despite database insert failure");
+			} else {
+				console.log("[TavusService] Stored conversation record:", {
+					conversationId,
+					scenarioId,
+					userId: user.id,
+				});
+			}
+		} catch (error) {
+			console.error("TavusService.storeConversationRecord error:", error);
+			// Don't throw - this is non-critical
 		}
 	}
 
