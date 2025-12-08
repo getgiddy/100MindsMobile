@@ -30,7 +30,7 @@ export default function ProgressScreen() {
 	return (
 		<ScrollView style={styles.scrollView}>
 			<View style={styles.container}>
-				<Text style={styles.header}>Your Progress</Text>
+				{/* <Text style={styles.header}>Your Progress</Text> */}
 
 				{/* Overall Score Card */}
 				<RNView style={styles.card}>
