@@ -1,15 +1,35 @@
 import CircularProgress from "@/components/CircularProgress";
 import { Text, View } from "@/components/Themed";
-import { useUserProgress } from "@/hooks";
+import { feedbackKeys, useUserProgress } from "@/hooks";
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import {
 	ActivityIndicator,
+	RefreshControl,
 	View as RNView,
 	ScrollView,
 	StyleSheet,
 } from "react-native";
 
 export default function ProgressScreen() {
-	const { data: progress, isLoading, error } = useUserProgress();
+	const queryClient = useQueryClient();
+	const [refreshing, setRefreshing] = useState(false);
+	const { data: progress, isLoading, error, refetch } = useUserProgress();
+
+	// Refresh progress when screen comes into focus
+	useFocusEffect(
+		useCallback(() => {
+			queryClient.invalidateQueries({ queryKey: feedbackKeys.progress() });
+		}, [queryClient])
+	);
+
+	// Handle pull-to-refresh
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await refetch();
+		setRefreshing(false);
+	}, [refetch]);
 
 	if (isLoading) {
 		return (
@@ -28,7 +48,17 @@ export default function ProgressScreen() {
 	}
 
 	return (
-		<ScrollView style={styles.scrollView}>
+		<ScrollView
+			style={styles.scrollView}
+			refreshControl={
+				<RefreshControl
+					refreshing={refreshing}
+					onRefresh={onRefresh}
+					colors={["#009999"]}
+					tintColor="#009999"
+				/>
+			}
+		>
 			<View style={styles.container}>
 				{/* <Text style={styles.header}>Your Progress</Text> */}
 

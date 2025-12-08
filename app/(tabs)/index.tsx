@@ -2,7 +2,14 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+	FlatList,
+	Pressable,
+	RefreshControl,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import IconButton from "@/components/IconButton";
@@ -23,6 +30,7 @@ const SCENARIO_CATEGORIES = [
 export default function TabOneScreen() {
 	const queryClient = useQueryClient();
 	const [selectedCategory, setSelectedCategory] = useState<number>(1);
+	const [refreshing, setRefreshing] = useState(false);
 	// Fetch scenarios with the data layer
 	const filter =
 		selectedCategory === 1
@@ -39,9 +47,15 @@ export default function TabOneScreen() {
 	useFocusEffect(
 		useCallback(() => {
 			queryClient.invalidateQueries({ queryKey: scenarioKeys.all });
-			refetch();
-		}, [queryClient, refetch])
+		}, [queryClient])
 	);
+
+	// Handle pull-to-refresh
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await refetch();
+		setRefreshing(false);
+	}, [refetch]);
 
 	return (
 		<SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -139,6 +153,14 @@ export default function TabOneScreen() {
 						)}
 						keyExtractor={(item) => item.id}
 						showsVerticalScrollIndicator={false}
+						refreshControl={
+							<RefreshControl
+								refreshing={refreshing}
+								onRefresh={onRefresh}
+								colors={["#009999"]}
+								tintColor="#009999"
+							/>
+						}
 					/>
 				</View>
 			</View>

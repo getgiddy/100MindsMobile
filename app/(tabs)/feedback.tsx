@@ -1,17 +1,42 @@
 import FeedbackCard from "@/components/FeedbackCard";
 import { View } from "@/components/Themed";
-import { useFeedbackList } from "@/hooks";
+import { feedbackKeys, useFeedbackList } from "@/hooks";
+import { useFocusEffect } from "@react-navigation/native";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "expo-router";
+import { useCallback, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
 	Pressable,
+	RefreshControl,
 	StyleSheet,
 	Text,
 } from "react-native";
 
 export default function FeedbackListScreen() {
-	const { data: feedbackItems = [], isLoading, error } = useFeedbackList();
+	const queryClient = useQueryClient();
+	const [refreshing, setRefreshing] = useState(false);
+	const {
+		data: feedbackItems = [],
+		isLoading,
+		error,
+		refetch,
+	} = useFeedbackList();
+
+	// Refresh feedback when screen comes into focus
+	useFocusEffect(
+		useCallback(() => {
+			queryClient.invalidateQueries({ queryKey: feedbackKeys.all });
+		}, [queryClient])
+	);
+
+	// Handle pull-to-refresh
+	const onRefresh = useCallback(async () => {
+		setRefreshing(true);
+		await refetch();
+		setRefreshing(false);
+	}, [refetch]);
 
 	return (
 		<View style={styles.container}>
@@ -48,6 +73,14 @@ export default function FeedbackListScreen() {
 						</Pressable>
 					</Link>
 				)}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={onRefresh}
+						colors={["#009999"]}
+						tintColor="#009999"
+					/>
+				}
 			/>
 		</View>
 	);
