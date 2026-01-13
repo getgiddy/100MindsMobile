@@ -26,3 +26,38 @@ Contributions, bug reports, and feature requests are welcome — please open an 
 ## License
 
 See the repository license or contact the maintainers for licensing details.
+
+## Troubleshooting
+
+```bash
+# All-in-one script to force complete re-pairing - MacOS/iOS
+sudo pkill -9 -f remoted;
+sudo pkill -9 -f remotepairingd;
+# Remove cached device support
+rm -rf ~/Library/Developer/Xcode/iOS\ DeviceSupport/*;
+sudo launchctl stop com.apple.usbmuxd;
+sudo launchctl start com.apple.usbmuxd;
+```
+
+### After Running Commands:
+
+1. Disconnect device (unplug USB)
+2. Wait 10 seconds
+3. Reconnect device
+4. Unlock device - you should see "Trust This Computer?" prompt
+5. Tap Trust and enter passcode
+6. Check status:
+
+```bash   
+xcrun devicectl list devices
+```
+
+### On the iOS Device (if needed):
+If the Mac-side reset doesn't work, also clear trust on the device:
+
+```txt
+Settings → General → Transfer or Reset → Reset → Reset Location & Privacy
+OR Settings → Developer → Clear Trusted Computers
+```
+
+This combination forces both sides to forget each other and establish a fresh pairing.
